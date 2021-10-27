@@ -4,7 +4,7 @@ import telebot
 from telebot import types
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-bot = telebot.TeleBot('2081961920:AAGVRl2JhB-G9TGzQJokh0t4J4vcGNoPago')
+bot = telebot.TeleBot('2081961920:AAERnhcfR-cEjw84VKwLG1RGc3Ra22G0v3k')
 
 MESSAGE_NEW = "Отправь ссылку на статью в ответ на это сообщение"
 MESSAGE_KEY = "Отправь ссылку на статью и текст ошибки в ответ на это сообщение"
@@ -107,4 +107,4 @@ def check_url(text):
 
 if __name__ == '__main__':
     while True:
-        bot.polling(none_stop=True)
+        bot.polling(none_stop=True, timeout=100, long_polling_timeout=10000000)
