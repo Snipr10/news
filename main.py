@@ -1,11 +1,19 @@
+import asyncio
+import time
+
 import requests
 from newspaper import Article
 import re
 import telebot
+from telethon import TelegramClient
 from telebot import types
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from openpyxl import load_workbook
 
 bot = telebot.TeleBot('2081961920:AAERnhcfR-cEjw84VKwLG1RGc3Ra22G0v3k')
+phone = "79910422683"
+client = TelegramClient(phone, 8296076, "eb69d92ebb65d72cbb8366ffb3ce7f0d")
+client.start(phone)
 
 MESSAGE_NEW = "Отправь ссылку на статью в ответ на это сообщение"
 MESSAGE_KEY = "Отправь ссылку на статью и текст ошибки в ответ на это сообщение"
@@ -14,7 +22,7 @@ MESSAGE_ERROR = "Что-то пошло не так"
 MESSAGE_NOT_FOUND_TASK = "Не мог найти таску, похожие:"
 MESSAGE_RESET_TASKS = "Таски сброшены"
 MESSAGE_ERROR_SAVE = "Ошибка сохранена"
-ERROR_CHAT = "1474614285"
+ERROR_CHAT = "1974656292"
 URL_PATTERN = r'/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/'
 
 URL_TG_API = "http://194.50.24.4:8000/api/"
@@ -55,17 +63,17 @@ def callback_query(call):
                              text=MESSAGE_KEY, reply_markup=types.ForceReply())
 
         elif call.data == "ok":
-            urls = get_url(call.message.json['entities'][0]['url'])
+            urls = get_url(call.message.json['entities'][-1]['url'])
             res = requests.post(URL_TG_API + "add_parsing_site", json={"urls": urls})
             if res.ok:
-                bot.send_message(chat_id, text="ok")
+                bot.send_message(chat_id, text=f"Сайт добавлен для парсинга: {urls[0]}")
             else:
                 bot.send_message(chat_id, text="не могу добавить урл, поытайтесь позже")
 
         elif call.data == "bad":
             # bot.send_message(ERROR_CHAT, call.message.json['entities'][0]['url'])
             bot.send_message(chat_id,
-                             text=f"Опишите проблему [Link]({call.message.json['entities'][0]['url']}) \n",
+                             text=f"Опишите проблему [Link]({call.message.json['entities'][-1]['url']}) \n",
                              parse_mode="Markdown",
                              reply_markup=types.ForceReply())
 
@@ -78,9 +86,9 @@ def callback_query(call):
                     send_message_error(message)
                 elif "Опишите проблему" in message.reply_to_message.text:
                     bot.forward_message(ERROR_CHAT, message.chat.id, message.message_id)
-                    bot.send_message(ERROR_CHAT, message.reply_to_message.json['entities'][0]['url'])
+                    bot.send_message(ERROR_CHAT, message.reply_to_message.json['entities'][-1]['url'])
                     try:
-                        urls = get_url(message.reply_to_message.json['entities'][0]['url'])
+                        urls = get_url(message.reply_to_message.json['entities'][-1]['url'])
                         res = requests.post(URL_TG_API + "check_parsing_site", json={"urls": urls})
                         if int(res.text) > 0:
                             res = requests.post(URL_TG_API + "deactivate_parsing_site", json={"urls": urls})
@@ -92,9 +100,6 @@ def callback_query(call):
 
                     except Exception:
                         bot.send_message(message.chat.id, MESSAGE_ERROR_SAVE)
-
-
-
 
             except Exception:
                 bot.send_message(message.chat.id, "Отправьте сообщение ответом")
@@ -118,6 +123,28 @@ def send_welcome(message):
 @bot.message_handler(commands=['menu'])
 def message_handler(message):
     bot.send_message(message.chat.id, "Выбери действие", reply_markup=gen_markup())
+
+
+@bot.message_handler(commands=['statistic'])
+def message_handler(message):
+    wb = load_workbook(filename='news_text_bot.xlsx')
+    sheet = wb['Лист1']
+    ws = wb.active
+    i = 2
+    n = True
+    for m in client.iter_messages("news_text_bot", reverse=True):
+        if n:
+            ws["B%s" % i] = m.text
+            n = False
+        else:
+            ws["A%s" % i] = m.text
+            n = True
+            i += 1
+    name = "errors-" + str(time.time()).replace(".", "") + ".xlsx"
+    wb.save(name)
+
+    f = open(name, "rb")
+    bot.send_document(message.chat.id, f)
 
 
 def send_message_error(message):
@@ -187,6 +214,13 @@ def check_url(text):
     return len(urls) == 1
 
 
+def start_bot():
+    try:
+        while True:
+            bot.polling(none_stop=True, timeout=100, long_polling_timeout=10000000)
+    except Exception:
+        start_bot()
+
+
 if __name__ == '__main__':
-    while True:
-        bot.polling(none_stop=True, timeout=100, long_polling_timeout=10000000)
+    start_bot()
