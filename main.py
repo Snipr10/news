@@ -63,7 +63,11 @@ def callback_query(call):
                              text=MESSAGE_KEY, reply_markup=types.ForceReply())
 
         elif call.data == "ok":
-            urls = get_url(call.message.json['entities'][-1]['url'])
+            try:
+                urls = get_url(call.message.json['entities'][-1]['url'])
+            except Exception:
+                urls = get_url(
+                    re.search("(?P<url>https?://[^\s]+)", call.message.json["text"]).group("url").replace(")", ""))
             res = requests.post(URL_TG_API + "add_parsing_site", json={"urls": urls})
             if res.ok:
                 bot.send_message(chat_id, text=f"Сайт добавлен для парсинга: {urls[0]}")
@@ -72,8 +76,13 @@ def callback_query(call):
 
         elif call.data == "bad":
             # bot.send_message(ERROR_CHAT, call.message.json['entities'][0]['url'])
+            try:
+                url = call.message.json['entities'][-1]['url']
+            except Exception:
+                url =  re.search("(?P<url>https?://[^\s]+)", call.message.json["text"]).group("url").replace(")", "")
+
             bot.send_message(chat_id,
-                             text=f"Опишите проблему [Link]({call.message.json['entities'][-1]['url']}) \n",
+                             text=f"Опишите проблему [Link]({url}) \n",
                              parse_mode="Markdown",
                              reply_markup=types.ForceReply())
 
@@ -88,7 +97,13 @@ def callback_query(call):
                     bot.forward_message(ERROR_CHAT, message.chat.id, message.message_id)
                     bot.send_message(ERROR_CHAT, message.reply_to_message.json['entities'][-1]['url'])
                     try:
-                        urls = get_url(message.reply_to_message.json['entities'][-1]['url'])
+                        try:
+                            urls = get_url(message.reply_to_message.json['entities'][-1]['url'])
+                        except Exception:
+                            urls = get_url(
+                                re.search("(?P<url>https?://[^\s]+)", call.message.json["text"]).group("url").replace(
+                                    ")", ""))
+
                         res = requests.post(URL_TG_API + "check_parsing_site", json={"urls": urls})
                         if int(res.text) > 0:
                             res = requests.post(URL_TG_API + "deactivate_parsing_site", json={"urls": urls})
@@ -127,7 +142,7 @@ def message_handler(message):
 
 @bot.message_handler(commands=['statistic'])
 def message_handler(message):
-    wb = load_workbook(filename='news_text_bot.xlsx')
+    wb = load_workbook(filename='123/news_text_bot.xlsx')
     sheet = wb['Лист1']
     ws = wb.active
     i = 2
@@ -198,10 +213,12 @@ def send_message_new(message):
             m_list = list(messages_list)
             for i in range(len(m_list)):
                 if i == len(m_list) - 1:
-
+                    if message.text not in m_list[i]:
+                        m_list[i] = message.text
                     bot.send_message(message.chat.id, m_list[i], reply_markup=gen_markup_message(message.text),
                                      parse_mode="Markdown")
                 else:
+
                     bot.send_message(message.chat.id, m_list[i],
                                      parse_mode="Markdown")
 
