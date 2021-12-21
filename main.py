@@ -142,7 +142,7 @@ def message_handler(message):
 
 @bot.message_handler(commands=['statistic'])
 def message_handler(message):
-    wb = load_workbook(filename='123/news_text_bot.xlsx')
+    wb = load_workbook(filename='news_text_bot.xlsx')
     sheet = wb['Лист1']
     ws = wb.active
     i = 2
