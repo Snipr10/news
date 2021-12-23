@@ -9,6 +9,7 @@ from telethon import TelegramClient
 from telebot import types
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from openpyxl import load_workbook
+from bs4 import BeautifulSoup
 
 bot = telebot.TeleBot('2081961920:AAERnhcfR-cEjw84VKwLG1RGc3Ra22G0v3k')
 phone = "79910422683"
@@ -184,29 +185,13 @@ def send_message_new(message):
         if not check_url(message.text):
             bot.send_message(message.chat.id, MESSAGE_ERROR_URL)
         else:
-            article = Article(message.text)
-            article.download()
-            article.parse()
-            title = article.title
-            text = article.text or ""
-            text_first_part = text[:len(title) * 3]
-            if title in text_first_part:
-                if len(text_first_part.replace(title + "\n", "")) != len(text_first_part):
-                    text = text.replace(title + "\n", "", 1)
-                else:
-                    try:
-                        first_par = text.split('\n')[0]
-                        first_par_without_par = first_par.replace(title, "")
-                        if "." not in first_par_without_par and "!" not in first_par_without_par and "?" not in first_par_without_par:
-                            text = text.replace(title, "", 1)
-                    except Exception:
-                        pass
+            article_title, article_meta_description, article_publish_date, text = get_article_data(message.text)
             text = re.sub("\n\n+", "\n\n", text)
             message_text = ""
-            message_text += "Title: \n" + (article.title or "") + "\n"
-            message_text += "Meta: \n" + (article.meta_description or "") + "\n"
+            message_text += "Title: \n" + (article_title or "") + "\n"
+            message_text += "Meta: \n" + (article_meta_description or "") + "\n"
             message_text += "Text: \n" + text + "\n"
-            message_text += "Date: \n" + str(article.publish_date or "") + "\n"
+            message_text += "Date: \n" + str(article_publish_date or "") + "\n"
             message_text += f"[Link]({message.text}) \n"
 
             messages_list = chunkstring(message_text, 4095)
@@ -224,6 +209,59 @@ def send_message_new(message):
 
     except Exception:
         bot.send_message(message.chat.id, MESSAGE_ERROR)
+
+URL_DICT = {
+    "https://infoneva.ru/": {"title": ["title", {}], "text": ["div", {"class": "text-content"}]},
+    "https://www.ntv.ru/": {"title": ["h1", {"itemprop": "headline"}], "text": ["div", {"class": "inpagebody"}]},
+}
+
+
+def _get_page_data(url):
+    for k in URL_DICT.keys():
+        if k in url:
+            post = requests.get(url)
+            soup = BeautifulSoup(post.text, 'html.parser')
+            article_title = soup.find(name=URL_DICT.get(k).get("title")[0], attrs=URL_DICT.get(k).get("title")[1]).text
+            text = ""
+            for c in soup.find(name=URL_DICT.get(k).get("text")[0], attrs=URL_DICT.get(k).get("text")[1]).contents:
+                try:
+                    if c.text:
+                        text += c.text + "\r\n <br> "
+                except Exception:
+                    pass
+            return article_title, text
+    return "", ""
+
+
+def get_article_data(url):
+    article_title = ""
+    article_meta_description = ""
+    article_publish_date = None
+    text = ""
+    article_title, text = _get_page_data(url)
+
+    if article_title == "" and text == "":
+        article = Article(url)
+        article.download()
+        article.parse()
+        title = article.title
+        text = article.text or ""
+        text_first_part = text[:len(title) * 3]
+        if title in text_first_part:
+            if len(text_first_part.replace(title + "\n", "")) != len(text_first_part):
+                text = text.replace(title + "\n", "", 1)
+            else:
+                try:
+                    first_par = text.split('\n')[0]
+                    first_par_without_par = first_par.replace(title, "")
+                    if "." not in first_par_without_par and "!" not in first_par_without_par and "?" not in first_par_without_par:
+                        text = text.replace(title, "", 1)
+                except Exception:
+                    pass
+        article_title = article.title
+        article_meta_description = article.meta_description
+        article_publish_date = article.publish_date
+    return article_title, article_meta_description, article_publish_date, text
 
 
 def check_url(text):
