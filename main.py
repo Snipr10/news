@@ -12,9 +12,6 @@ from openpyxl import load_workbook
 from bs4 import BeautifulSoup
 
 bot = telebot.TeleBot('2081961920:AAERnhcfR-cEjw84VKwLG1RGc3Ra22G0v3k')
-phone = "79910422683"
-client = TelegramClient(phone, 8296076, "eb69d92ebb65d72cbb8366ffb3ce7f0d")
-client.start(phone)
 
 MESSAGE_NEW = "Отправь ссылку на статью в ответ на это сообщение"
 MESSAGE_KEY = "Отправь ссылку на статью и текст ошибки в ответ на это сообщение"
@@ -80,7 +77,7 @@ def callback_query(call):
             try:
                 url = call.message.json['entities'][-1]['url']
             except Exception:
-                url =  re.search("(?P<url>https?://[^\s]+)", call.message.json["text"]).group("url").replace(")", "")
+                url = re.search("(?P<url>https?://[^\s]+)", call.message.json["text"]).group("url").replace(")", "")
 
             bot.send_message(chat_id,
                              text=f"Опишите проблему [Link]({url}) \n",
@@ -210,9 +207,36 @@ def send_message_new(message):
     except Exception:
         bot.send_message(message.chat.id, MESSAGE_ERROR)
 
+
 URL_DICT = {
     "https://infoneva.ru/": {"title": ["title", {}], "text": ["div", {"class": "text-content"}]},
     "https://www.ntv.ru/": {"title": ["h1", {"itemprop": "headline"}], "text": ["div", {"class": "inpagebody"}]},
+    "https://peterburg2.ru/": {"title": ["h1", {}], "text": ["span", {"class": "article-content"}],
+                               "meta": ["p", {"class": "article-content"}]},
+    # "https://lenta.ru/": {"title": ["h1", {}], "text": ["div", {"class": "topic-body"}],
+    #                            "meta": ["div", {"class*=topic-header__title-yandex"}]},
+    # "https://bloknot.ru/": {"title": ["h1", {}], "text": ["div", {"class": "article__content"}]}
+    "https://spb.dixinews.ru/": {"title": ["h1", {}], "text": ["div", {"class": "entry-content"}], "wholetext": True},
+    "https://ria.ru/": {"title": ["div", {"class": "article__title"}], "text": ["div", {"class": "article__body"}],
+                        "meta": ["h1", {"class": "article__second-title"}]},
+    "https://vedomosti-spb.ru/": {"title": ["h1", {"class": "article-headline__title"}],
+                                  "text": ["div", {"class": "article-boxes-list article__boxes"}],
+                                  "meta": ["div", {"class": "article-authors__info"}]},
+    "https://live24.ru/": {"title": ["h1", {}],
+                           "text": ["div", {
+                               "class": "uk-panel uk-text-large uk-dropcap maintext uk-margin uk-width-2xlarge uk-margin-auto"}],
+                           },
+    "https://www.sobaka.ru/": {"title": ["h1", {"itemprop": "headline name"}],
+                               "text": ["div", {"itemprop": "articleBody"}],
+                               },
+    "https://www.flashnord.com/": {"title": ["h1", {"class": "entry-title"}],
+                                   "text": ["div", {"class": "entry-content"}],
+                                   },
+    "https://www.interfax-russia.ru/": {"title": ["div", {"itemprop": "headline"}],
+                                        "text": ["div", {"itemprop": "articleBody"}],
+                                        },
+
+
 }
 
 
@@ -223,12 +247,26 @@ def _get_page_data(url):
             soup = BeautifulSoup(post.text, 'html.parser')
             article_title = soup.find(name=URL_DICT.get(k).get("title")[0], attrs=URL_DICT.get(k).get("title")[1]).text
             text = ""
-            for c in soup.find(name=URL_DICT.get(k).get("text")[0], attrs=URL_DICT.get(k).get("text")[1]).contents:
-                try:
-                    if c.text:
-                        text += c.text + "\r\n <br> "
-                except Exception:
-                    pass
+            try:
+                if "meta" in URL_DICT.get(k).keys():
+                    for c in soup.find(name=URL_DICT.get(k).get("meta")[0],
+                                       attrs=URL_DICT.get(k).get("meta")[1]).contents:
+                        try:
+                            if c.text and c.text.strip():
+                                text += c.text + "\r\n <br> "
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            if URL_DICT.get(k).get("wholetext"):
+                text += soup.find(name=URL_DICT.get(k).get("text")[0], attrs=URL_DICT.get(k).get("text")[1]).text
+            else:
+                for c in soup.find(name=URL_DICT.get(k).get("text")[0], attrs=URL_DICT.get(k).get("text")[1]).contents:
+                    try:
+                        if c.text and c.text.strip():
+                            text += re.sub("\n+", "\n", c.text.strip()) + "\r\n <br> "
+                    except Exception:
+                        pass
             return article_title, text
     return "", ""
 
@@ -278,4 +316,10 @@ def start_bot():
 
 
 if __name__ == '__main__':
+    article_title, text = _get_page_data(
+        "https://topspb.tv/news/2021/10/22/dva-sezda-s-primorskogo-puteprovoda-uluchshat-dorozhnuyu-situaciyu-na-severo-zapade-peterburga/")
+
+    phone = "79910422683"
+    client = TelegramClient(phone, 8296076, "eb69d92ebb65d72cbb8366ffb3ce7f0d")
+    client.start(phone)
     start_bot()
