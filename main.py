@@ -9,7 +9,7 @@ from telethon import TelegramClient
 from telebot import types
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from openpyxl import load_workbook
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 bot = telebot.TeleBot('2081961920:AAERnhcfR-cEjw84VKwLG1RGc3Ra22G0v3k')
 
@@ -237,7 +237,10 @@ URL_DICT = {
     "https://www.interfax-russia.ru/": {"title": ["div", {"itemprop": "headline"}],
                                         "text": ["div", {"itemprop": "articleBody"}],
                                         },
-
+    "https://www.rtr.spb.ru/": {"title": ["font", {"class": "base"}],
+                                        "text": ["p", {"align": "justify"}],
+                                "decoder": "windows-1251", "manual":True
+                                        },
 
 }
 
@@ -245,8 +248,16 @@ URL_DICT = {
 def _get_page_data(url):
     for k in URL_DICT.keys():
         if k in url:
-            post = requests.get(url)
-            soup = BeautifulSoup(post.text, 'html.parser')
+            try:
+                post = requests.get(url)
+            except Exception:
+                post = requests.get(url, headers={
+                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36'
+                })
+            if URL_DICT.get(k).get("decoder"):
+                soup = BeautifulSoup(post.content.decode(URL_DICT.get(k).get("decoder")))
+            else:
+                soup = BeautifulSoup(post.text, 'html.parser')
             article_title = soup.find(name=URL_DICT.get(k).get("title")[0], attrs=URL_DICT.get(k).get("title")[1]).text
             text = ""
             try:
@@ -268,12 +279,21 @@ def _get_page_data(url):
                     soup_cont = soup_all[-1]
                 else:
                     soup_cont = soup_all[0]
-                for c in soup_cont.contents:
-                    try:
-                        if c.text and c.text.strip():
-                            text += re.sub("\n+", "\n", c.text.strip()) + "\r\n <br> "
-                    except Exception:
-                        pass
+                text = ""
+
+                if URL_DICT.get(k).get("manual", False):
+                    for c in soup_cont.contents[0].contents:
+                        if isinstance(c, NavigableString) or len(c.attrs) == 0:
+                            text += str(c)
+                        else:
+                            break
+                else:
+                    for c in soup_cont.contents:
+                        try:
+                            if c.text and c.text.strip():
+                                text += re.sub("\n+", "\n", c.text.strip()) + "\r\n <br> "
+                        except Exception:
+                            pass
             return article_title, text
     return "", ""
 
