@@ -204,7 +204,8 @@ def send_message_new(message):
                     bot.send_message(message.chat.id, m_list[i],
                                      parse_mode="Markdown")
 
-    except Exception:
+    except Exception as e:
+        print(e)
         bot.send_message(message.chat.id, MESSAGE_ERROR)
 
 
