@@ -465,5 +465,5 @@ if __name__ == '__main__':
 
     phone = "79910422683"
     client = TelegramClient(phone, 8296076, "eb69d92ebb65d72cbb8366ffb3ce7f0d")
-    client.start(phone)
+    # client.start(phone)
     start_bot()
