@@ -246,7 +246,23 @@ URL_DICT = {
     "https://galernayas.ru/": {"title": ["h2", {}], "text": ["div", {"style": "text-align:justify"}], "p": True,
                             },
     "https://78.ru/": {"title": ["h1", {}], "text": ["div", {"class": "publication__body"}],
-                               "meta": ["div", {"class": "article__summary"}]},
+                               "meta": ["div", {"class": "article__summary"}],
+                       "heades": {
+                              'authority': '78.ru',
+                              'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                              'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+                              'cache-control': 'max-age=0',
+                              'dnt': '1',
+                              'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="100", "Google Chrome";v="100"',
+                              'sec-ch-ua-mobile': '?1',
+                              'sec-ch-ua-platform': '"Android"',
+                              'sec-fetch-dest': 'document',
+                              'sec-fetch-mode': 'navigate',
+                              'sec-fetch-site': 'same-origin',
+                              'sec-fetch-user': '?1',
+                              'upgrade-insecure-requests': '1',
+                              'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Mobile Safari/537.36'
+                            }},
     "https://novayagazeta.spb.ru/": {"title": ["h1", {}], "text": ["div", {"class": "article"}],
                                },
     "https://www.interessant.ru/": {"title": ["h1", {}], "text": ["div", {"class": "text"}],
@@ -296,12 +312,29 @@ URL_DICT = {
                                    },
     "https://www.sobaka.ru/": {"title": ["h1", {}],
                                    "text": ["div", {"class":"b-post-blocks"}], "p": True,
-                                   }
+                                   },
+    "https://www.fontanka.ru/": {"title": ["h1", {}],
+                                   "text": ["section", {"itemprop":"articleBody"}], "p": True,
+                                   },
+    "https://nevnov.ru/": {"title": ["h1", {"itemprop": "headline"}],
+                                   "text": ["div", {"class": "editorjs-show"}], "p": True,
+                                   },
+    "https://riafan.ru/": {"title": ["h1", {"itemprop": "headline"}],
+                                   "text": ["div", {"itemprop": "articleBody"}],
+                                   },
+    "https://tass.ru/": {"title": ["h1", {}], "text": ["article", {}],
+                        "meta": ["meta", {"name":"description"}], "p": True,},
+    # "https://www.dp.ru/": {"title": ["h1", {"class": "headline"}],
+    #                                "text": ["div", {"class": "content"}],
+    #                        "paragraph-wrapper": True,
+    #                                }
 }
 
 
 def _get_page_data(url):
+    text = ""
     for k in URL_DICT.keys():
+
         if k in url:
             try:
                 post = requests.get(url)
@@ -314,7 +347,6 @@ def _get_page_data(url):
             else:
                 soup = BeautifulSoup(post.text, 'html.parser')
             article_title = soup.find(name=URL_DICT.get(k).get("title")[0], attrs=URL_DICT.get(k).get("title")[1]).text
-            text = ""
             try:
                 if "meta" in URL_DICT.get(k).keys():
                     for c in soup.find(name=URL_DICT.get(k).get("meta")[0],
@@ -324,6 +356,9 @@ def _get_page_data(url):
                                 text += c.text + "\r\n <br> "
                         except Exception:
                             pass
+                    if not text:
+                        text += soup.find(name=URL_DICT.get(k).get("meta")[0],
+                                  attrs=URL_DICT.get(k).get("meta")[1]).get("content")
             except Exception:
                 pass
             if URL_DICT.get(k).get("wholetext"):
@@ -334,7 +369,6 @@ def _get_page_data(url):
                     soup_cont = soup_all[-1]
                 else:
                     soup_cont = soup_all[0]
-                text = ""
 
                 if URL_DICT.get(k).get("manual", False):
                     for c in soup_cont.contents[0].contents:
@@ -354,6 +388,7 @@ def _get_page_data(url):
                                         text += re.sub("\n+", "\n", c.text.strip()) + "\r\n <br> "
                             except Exception:
                                 pass
+
                     else:
                         for c in soup_cont.contents:
                             try:
