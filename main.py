@@ -226,7 +226,7 @@ URL_DICT = {
     "https://live24.ru/": {"title": ["h1", {}],
                            "text": ["div", {
                                "class":  re.compile('.*panel uk-text-large maintext.*')}],
-                           "is_last": True
+                           "is_all": True
                            },
     # "https://www.sobaka.ru/": {"title": ["h1", {"itemprop": "headline name"}],
     #                            "text": ["div", {"itemprop": "articleBody"}],
@@ -293,11 +293,11 @@ URL_DICT = {
     #                               "text": ["div", {"id": "materialBlock_0"}],
     #                             },
     "https://mir24.tv/": {"title": ["h1", {}],
-                                 "text": ["div", {"class": "article-content"}], "p": True, "next": True
+                                 "text": ["div", {"class": "article-content"}], "p": True,
                                  },
-    "https://mos.news/": {"title": ["h1", {}],
-                          "text": ["div", {"class": "detail_text_container"}],  "decoder": "windows-1251",  "next": True
-                          },
+    # "https://mos.news/": {"title": ["h1", {}],
+    #                       "text": ["div", {"class": "detail_text_container"}],  "decoder": "windows-1251",  "next": True
+    #                       },
     "https://delta.news/": {"title": ["h5", {"class":"white-text grey darken-2"}],
                           "text": ["article", {"class": "card"}], "next": True,
                             "delete_title": True
@@ -331,9 +331,49 @@ URL_DICT = {
                         "text": ["div", {"class": "PageArticleContent_content___3MI5"}],
                         "meta": ["div", {"class": "PageArticleContent_lead__gvX5C"}],
                         "p": True, },
-    # "https://mos.news/": {"title": ["h1", {}],
-    #                     "text": ["div", {"class": "detail_text_container"}],
-    #                     },
+    "https://nation-news.ru/": {"title": ["h1", {"itemprop": "headline"}],
+                                   "text": ["div", {"itemprop": "articleBody"}],
+                                   },
+    "https://mos.news/": {"title": ["h1", {}],
+                        "text": ["div", {"class": "detail_text_container"}],
+                        },
+    "https://octagon.media/": {"title": ["h1", {}],
+                                "text": ["article", {}],
+                                },
+    "https://m.47news.ru/": {"title": ["h1", {}],
+                                "text": ["div", {"class":"article-text"}],
+                                },
+    "https://infosmi.net/": {"title": ["h1", {}],
+                                "text": ["div", {"class": "theiaPostSlider_slides"}],
+                                },
+    "https://news-r.ru/": {"title": ["div", {"class": "item-header"}],
+                                "text": ["div", {"itemprop": "articleBody"}],
+                                },
+    "https://rueconomics.ru/": {"title": ["h1", {"itemprop": "headline"}],
+                                "text": ["div", {"itemprop": "articleBody"}],
+                                },
+    "https://newinform.com/": {"title": ["h1", {"itemprop": "headline"}],
+                                "text": ["div", {"itemprop": "articleBody"}], "p": True
+                                },
+    "https://www.vedomosti.ru/": {"title": ["h1", {"class": "article-headline__title"}],
+                                "text": ["div", {"class": "article__body"}],
+                                "meta": ["em", {"class": "article-headline__subtitle"}],
+                                  "p": True
+                                },
+    "https://rusargument.ru/": {"title": ["h1", {}],
+                               "text": ["div", {"class": "text-article"}], "p": True
+                               },
+    "https://gorsreda-spb.ru/": {"title": ["h1", {}],
+                                "text": ["div", {"class": "text-block"}],
+                                "meta": ["header", {"class": "title"}],
+
+                                 },
+
+    "https://doctorpiter.ru/": {"title": ["h1", {}],
+                                  "text": ["section", {"itemprop": "articleBody"}],
+                                  "meta": ["p", {"itemprop": "description alternativeHeadline"}],
+                                  },"p": True
+
     # "https://www.dp.ru/": {"title": ["h1", {"class": "headline"}],
     #                                "text": ["div", {"class": "content"}],
     #                        "paragraph-wrapper": True,
@@ -373,6 +413,9 @@ def _get_page_data(url):
                 pass
             if URL_DICT.get(k).get("wholetext"):
                 text += soup.find(name=URL_DICT.get(k).get("text")[0], attrs=URL_DICT.get(k).get("text")[1]).text
+            elif URL_DICT.get(k).get("is_all", False):
+                for s in soup.find_all(name=URL_DICT.get(k).get("text")[0], attrs=URL_DICT.get(k).get("text")[1]):
+                    text += s.text + "\r\n <br> "
             else:
                 soup_all = soup.find_all(name=URL_DICT.get(k).get("text")[0], attrs=URL_DICT.get(k).get("text")[1])
                 if URL_DICT.get(k).get("is_last", False):
@@ -387,8 +430,11 @@ def _get_page_data(url):
                         else:
                             break
                 else:
-                    if URL_DICT.get(k).get("p", False):
-                        for c in soup_cont.find_all("p"):
+                    if URL_DICT.get(k).get("p", False) or URL_DICT.get(k).get("br", False):
+                        search_text = "p"
+                        if URL_DICT.get(k).get("br", False):
+                            search_text = "br"
+                        for c in soup_cont.find_all(search_text):
                             try:
                                 if URL_DICT.get(k).get("next", False):
                                     if c.next and c.next.strip():
